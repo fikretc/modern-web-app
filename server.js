@@ -22,7 +22,8 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
 // Define a schema and model for users
 const userSchema = new mongoose.Schema({
     username: { type: String, unique: true },
-    password: String
+    password: String,
+    isAdmin: { type: Boolean, default: false }
 });
 const User = mongoose.model("User", userSchema);
 
@@ -59,6 +60,15 @@ function isAuthenticated(req, res, next) {
     }
 }
 
+// Middleware to check if user is an admin
+function isAdmin(req, res, next) {
+    if (req.session.user && req.session.user.isAdmin) {
+        return next();
+    } else {
+        res.status(403).send('Forbidden');
+    }
+}
+
 // Handle form submissions
 app.post("/submit", (req, res) => {
     const { name, email, message } = req.body;
@@ -77,11 +87,11 @@ app.post("/login", async (req, res) => {
     }
 });
 
-// Endpoint to handle user registration
-app.post("/register", async (req, res) => {
-    const { username, password } = req.body;
+// Endpoint to handle user registration (admin only)
+app.post("/register", isAdmin, async (req, res) => {
+    const { username, password, isAdmin } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, password: hashedPassword });
+    const newUser = new User({ username, password: hashedPassword, isAdmin });
     try {
         await newUser.save();
         res.json({ success: true });
@@ -103,37 +113,53 @@ app.post("/save-click", isAuthenticated, async (req, res) => {
     }
 });
 
-// Add this endpoint to fetch users
+// Endpoint to fetch users (admin can see all, others can see only themselves)
 app.get("/users", isAuthenticated, async (req, res) => {
     try {
-        const users = await User.find({});
+        let users;
+        if (req.session.user.isAdmin) {
+            users = await User.find({});
+        } else {
+            users = await User.find({ username: req.session.user.username });
+        }
         res.json(users);
     } catch (error) {
         res.status(500).send(error);
     }
 });
 
-// Add this endpoint to fetch click events
+// Endpoint to fetch click events (admin can see all, others can see only their own)
 app.get("/clicks", isAuthenticated, async (req, res) => {
     try {
-        const clicks = await Click.find({});
+        let clicks;
+        if (req.session.user.isAdmin) {
+            clicks = await Click.find({});
+        } else {
+            clicks = await Click.find({ username: req.session.user.username });
+        }
         res.json(clicks);
     } catch (error) {
         res.status(500).send(error);
     }
 });
 
-// Endpoint to fetch markers by user and time period
+// Endpoint to fetch markers by user and time period (admin can see all, others can see only their own)
 app.get("/report", isAuthenticated, async (req, res) => {
     const { username, start, end } = req.query;
     try {
-        const markers = await Click.find({
-            username,
-            timestamp: {
-                $gte: new Date(start),
-                $lte: new Date(end)
-            }
-        });
+        let markers;
+        if (req.session.user.isAdmin || req.session.user.username === username) {
+            markers = await Click.find({
+                username,
+                timestamp: {
+                    $gte: new Date(start),
+                    $lte: new Date(end)
+                }
+            });
+        } else {
+            res.status(403).send('Forbidden');
+            return;
+        }
         res.json(markers);
     } catch (error) {
         res.status(500).send(error);
@@ -154,6 +180,19 @@ app.post("/logout", (req, res) => {
         res.status(200).send("Logout successful");
     });
 });
+
+// Initialize admin user if it doesn't exist
+async function initializeAdminUser() {
+    const adminUser = await User.findOne({ username: 'admin' });
+    if (!adminUser) {
+        const hashedPassword = await bcrypt.hash('adminpass', 10);
+        const newAdmin = new User({ username: 'admin', password: hashedPassword, isAdmin: true });
+        await newAdmin.save();
+        console.log('Admin user created with username: admin and password: adminpass');
+    }
+}
+
+initializeAdminUser();
 
 // Start the server
 app.listen(PORT, () => {
