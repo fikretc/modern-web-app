@@ -16,8 +16,6 @@ const dbName = process.env.MONGODB_DBNAME;
 const dbHost = process.env.MONGODB_HOST;
 const mongoURI = `mongodb://${dbUsername}:${dbPassword}@${dbHost}/${dbName}?authSource=admin`;
 
-// log to check connection string
-console.log("Connection String: ", mongoURI);
 // Connect to MongoDB
 mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
 
@@ -79,7 +77,7 @@ app.post("/login", async (req, res) => {
     }
 });
 
-// Endpoint to handle user registration (for testing purposes)
+// Endpoint to handle user registration
 app.post("/register", async (req, res) => {
     const { username, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -123,6 +121,38 @@ app.get("/clicks", isAuthenticated, async (req, res) => {
     } catch (error) {
         res.status(500).send(error);
     }
+});
+
+// Endpoint to fetch markers by user and time period
+app.get("/report", isAuthenticated, async (req, res) => {
+    const { username, start, end } = req.query;
+    try {
+        const markers = await Click.find({
+            username,
+            timestamp: {
+                $gte: new Date(start),
+                $lte: new Date(end)
+            }
+        });
+        res.json(markers);
+    } catch (error) {
+        res.status(500).send(error);
+    }
+});
+
+// Serve the report.html page only to authenticated users
+app.get("/report.html", isAuthenticated, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'report.html'));
+});
+
+// Endpoint to handle user logout
+app.post("/logout", (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            return res.status(500).send("Logout failed");
+        }
+        res.status(200).send("Logout successful");
+    });
 });
 
 // Start the server

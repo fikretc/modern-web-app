@@ -37,6 +37,29 @@
         #coordinates {
             margin-top: 20px;
         }
+        .menu {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .menu button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 5px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+        .menu button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -54,6 +77,12 @@
         </form>
     </div>
     <div id="map-container" style="display: none;">
+        <div class="menu">
+            <button onclick="window.location.href='/report.html'">Report</button>
+            <button onclick="window.location.href='/clicks'">Clicks</button>
+            <button onclick="window.location.href='/users'">Users</button>
+            <button onclick="logout()">Logout</button>
+        </div>
         <form id="location-form">
             <input type="text" id="country" placeholder="Enter country" required>
             <input type="text" id="city" placeholder="Enter city" required>
@@ -120,6 +149,8 @@
             }).addTo(map);
 
             let currentMarker = L.marker([initialLat, initialLon]).addTo(map);
+            let markerPoints = [[initialLat, initialLon]]; // Array to store marker points
+            let polyline = null; // Reference to the polyline
 
             // Form submit event for location
             document.getElementById('location-form').addEventListener('submit', async function(event) {
@@ -145,6 +176,21 @@
                     map.removeLayer(currentMarker);
                 }
                 currentMarker = L.marker([lat, lon]).addTo(map);
+                markerPoints.push([lat, lon]);
+                if (markerPoints.length > 5) {
+                    markerPoints.shift(); // Keep only the last 5 points
+                }
+                drawPolyline();
+            }
+
+            // Function to draw polyline between the last 5 marker points
+            function drawPolyline() {
+                if (polyline) {
+                    map.removeLayer(polyline); // Remove the existing polyline
+                }
+                if (markerPoints.length > 1) {
+                    polyline = L.polyline(markerPoints, { color: 'blue' }).addTo(map);
+                }
             }
 
             // Add click event listener to the map with a timer for double-click detection
@@ -184,6 +230,21 @@
                 if (!response.ok) {
                     console.error('Error saving click event');
                 }
+            }
+        }
+
+        // Function to handle logout
+        async function logout() {
+            const response = await fetch('/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (response.ok) {
+                window.location.href = '/';
+            } else {
+                alert('Logout failed');
             }
         }
     </script>

@@ -1,0 +1,79 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marker Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        input, button {
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+    </style>
+</head>
+<body>
+    <h1>Marker Report</h1>
+    <form id="report-form">
+        <input type="text" id="username" placeholder="Enter username" required>
+        <input type="datetime-local" id="start-time" required>
+        <input type="datetime-local" id="end-time" required>
+        <button type="submit">Generate Report</button>
+    </form>
+    <table id="report-table">
+        <thead>
+            <tr>
+                <th>Latitude</th>
+                <th>Longitude</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+    <script>
+        document.getElementById('report-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const startTime = document.getElementById('start-time').value;
+            const endTime = document.getElementById('end-time').value;
+            const response = await fetch(`/report?username=${username}&start=${startTime}&end=${endTime}`);
+            const markers = await response.json();
+            const tbody = document.getElementById('report-table').querySelector('tbody');
+            tbody.innerHTML = '';
+            markers.forEach(marker => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${marker.lat}</td><td>${marker.lon}</td><td>${new Date(marker.timestamp).toLocaleString()}</td>`;
+                tbody.appendChild(row);
+            });
+        });
+    </script>
+</body>
+</html>
