@@ -17,7 +17,7 @@ const dbHost = process.env.MONGODB_HOST;
 const mongoURI = `mongodb://${dbUsername}:${dbPassword}@${dbHost}/${dbName}?authSource=admin`;
 
 // Connect to MongoDB
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect(mongoURI, { });
 
 // Define a schema and model for users
 const userSchema = new mongoose.Schema({
